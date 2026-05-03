@@ -15,7 +15,6 @@ import com.example.task2.ui.GalleryViewModel
 import com.example.task2.ui.GalleryViewModelFactory
 import com.example.task2.ui.screens.GalleryScreen
 import com.example.task2.ui.theme.Task2Theme
-import com.example.task2.utils.CameraHelper
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,6 +31,14 @@ class MainActivity : ComponentActivity() {
                 ) { success ->
                     if (success) {
                         viewModel.addPhoto()
+                    }
+                }
+
+                val galleryLauncher = rememberLauncherForActivityResult(
+                    ActivityResultContracts.GetContent()
+                ) { uri ->
+                    if (uri != null) {
+                        viewModel.importPhoto(uri)
                     }
                 }
 
@@ -55,6 +62,9 @@ class MainActivity : ComponentActivity() {
                         } else {
                             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                         }
+                    },
+                    onImportPhotoClick = {
+                        galleryLauncher.launch("image/*")
                     }
                 )
             }

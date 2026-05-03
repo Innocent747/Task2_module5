@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,13 +24,14 @@ import com.example.task2.ui.GalleryViewModel
 @Composable
 fun GalleryScreen(
     viewModel: GalleryViewModel,
-    onTakePhotoClick: () -> Unit
+    onTakePhotoClick: () -> Unit,
+    onImportPhotoClick: () -> Unit
 ) {
     val photos by viewModel.photos.collectAsState()
     val exportMessage by viewModel.exportMessage.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedPhoto by remember { mutableStateOf<Photo?>(null) }
-    var showOptions by remember { mutableStateOf<String?>(null) }
+    var expandedMenuId by remember { mutableStateOf<String?>(null) }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -47,11 +49,23 @@ fun GalleryScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onTakePhotoClick,
-                containerColor = MaterialTheme.colorScheme.primary
+            Column(
+                modifier = Modifier.padding(end = 16.dp, bottom = 16.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Сделать фото")
+                FloatingActionButton(
+                    onClick = onImportPhotoClick,
+                    containerColor = MaterialTheme.colorScheme.secondary
+                ) {
+                    Text("📱", fontSize = MaterialTheme.typography.headlineSmall.fontSize)
+                }
+                FloatingActionButton(
+                    onClick = onTakePhotoClick,
+                    containerColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "Сделать фото")
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -89,7 +103,6 @@ fun GalleryScreen(
                         modifier = Modifier
                             .aspectRatio(1f)
                             .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable { showOptions = photo.id }
                     ) {
                         AsyncImage(
                             model = photo.file,
@@ -98,47 +111,43 @@ fun GalleryScreen(
                             contentScale = ContentScale.Crop
                         )
 
-                        if (showOptions == photo.id) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f))
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .align(Alignment.Center)
-                                        .fillMaxWidth()
-                                        .padding(8.dp),
-                                    horizontalArrangement = Arrangement.SpaceEvenly
-                                ) {
-                                    FloatingActionButton(
-                                        onClick = {
-                                            viewModel.exportPhoto(photo)
-                                            showOptions = null
-                                        },
-                                        modifier = Modifier.size(48.dp),
-                                        containerColor = MaterialTheme.colorScheme.secondary
-                                    ) {
-                                        Text("📤", fontSize = MaterialTheme.typography.headlineSmall.fontSize)
-                                    }
+                        // Menu button
+                        IconButton(
+                            onClick = {
+                                expandedMenuId = if (expandedMenuId == photo.id) null else photo.id
+                            },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f))
+                        ) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = "Menu",
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
 
-                                    FloatingActionButton(
-                                        onClick = {
-                                            selectedPhoto = photo
-                                            showDeleteDialog = true
-                                            showOptions = null
-                                        },
-                                        modifier = Modifier.size(48.dp),
-                                        containerColor = MaterialTheme.colorScheme.error
-                                    ) {
-                                        Icon(
-                                            Icons.Filled.Delete,
-                                            contentDescription = "Delete",
-                                            tint = MaterialTheme.colorScheme.onError
-                                        )
-                                    }
+                        // Dropdown Menu
+                        DropdownMenu(
+                            expanded = expandedMenuId == photo.id,
+                            onDismissRequest = { expandedMenuId = null },
+                            modifier = Modifier.align(Alignment.TopEnd)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("📤 Экспорт в галерею") },
+                                onClick = {
+                                    viewModel.exportPhoto(photo)
+                                    expandedMenuId = null
                                 }
-                            }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("🗑️ Удалить") },
+                                onClick = {
+                                    selectedPhoto = photo
+                                    showDeleteDialog = true
+                                    expandedMenuId = null
+                                }
+                            )
                         }
                     }
                 }
@@ -150,6 +159,7 @@ fun GalleryScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Удалить фото?") },
+            text = { Text("Это действие невозможно отменить") },
             confirmButton = {
                 TextButton(
                     onClick = {

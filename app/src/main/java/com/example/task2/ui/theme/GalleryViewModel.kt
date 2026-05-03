@@ -1,5 +1,6 @@
 package com.example.task2.ui
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -47,12 +48,28 @@ class GalleryViewModel(private val repository: PhotoRepository) : ViewModel() {
             try {
                 val success = repository.exportPhotoToGallery(photo.file)
                 if (success) {
-                    _exportMessage.value = "Фото добавлено в галерею"
+                    _exportMessage.value = "✓ Фото добавлено в галерею"
                 } else {
-                    _exportMessage.value = "Ошибка при экспорте фото"
+                    _exportMessage.value = "✗ Ошибка при экспорте"
                 }
             } catch (e: Exception) {
-                _exportMessage.value = "Ошибка: ${e.message}"
+                _exportMessage.value = "✗ Ошибка: ${e.message}"
+            }
+        }
+    }
+
+    fun importPhoto(uri: Uri) {
+        viewModelScope.launch {
+            try {
+                val success = repository.importPhotoFromUri(uri)
+                if (success) {
+                    _exportMessage.value = "✓ Фото импортировано"
+                    loadPhotos()
+                } else {
+                    _exportMessage.value = "✗ Ошибка при импорте"
+                }
+            } catch (e: Exception) {
+                _exportMessage.value = "✗ Ошибка: ${e.message}"
             }
         }
     }

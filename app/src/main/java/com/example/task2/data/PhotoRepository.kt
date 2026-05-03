@@ -1,7 +1,9 @@
 package com.example.task2.data
 
+import android.content.ContentValues
 import android.content.Context
 import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -56,20 +58,49 @@ class PhotoRepository(private val context: Context) {
 
     suspend fun exportPhotoToGallery(photoFile: File): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
-            val galleryDir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                "GalleryApp"
-            )
-
-            if (!galleryDir.exists()) {
-                galleryDir.mkdirs()
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, photoFile.name)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+                }
             }
 
-            val newFile = File(galleryDir, photoFile.name)
-            photoFile.copyTo(newFile, overwrite = true)
-            true
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+            if (uri != null) {
+                resolver.openOutputStream(uri)?.use { outputStream ->
+                    photoFile.inputStream().use { inputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
-            Log.e("PhotoRepository", "Error exporting photo", e)
+            Log.e("PhotoRepository", "Error exporting photo to gallery", e)
+            false
+        }
+    }
+
+    suspend fun importPhotoFromUri(sourceUri: android.net.Uri): Boolean = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val photoFile = getNewPhotoFile()
+            if (photoFile != null) {
+                val resolver = context.contentResolver
+                resolver.openInputStream(sourceUri)?.use { inputStream ->
+                    photoFile.outputStream().use { outputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e("PhotoRepository", "Error importing photo", e)
             false
         }
     }
